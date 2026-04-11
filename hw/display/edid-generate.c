@@ -8,6 +8,11 @@
 #include "qemu/bswap.h"
 #include "hw/display/edid.h"
 
+/* Set by display init from -display refresh-rate= option.
+ * Weak symbol so qemu-edid standalone tool links without console.c.
+ */
+uint32_t __attribute__((weak)) qemu_edid_refresh_rate_mhz;
+
 static const struct edid_mode {
     uint32_t xres;
     uint32_t yres;
@@ -387,7 +392,9 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
     uint8_t *dta = NULL;
     uint8_t *did = NULL;
     uint32_t width_mm, height_mm;
-    uint32_t refresh_rate = info->refresh_rate ? info->refresh_rate : 75000;
+    uint32_t refresh_rate = info->refresh_rate ? info->refresh_rate :
+                            qemu_edid_refresh_rate_mhz ? qemu_edid_refresh_rate_mhz :
+                            120000;
     uint32_t dpi = 100; /* if no width_mm/height_mm */
     uint32_t large_screen = 0;
 

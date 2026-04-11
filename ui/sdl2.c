@@ -58,7 +58,6 @@ static int guest_x, guest_y;
 static SDL_Cursor *guest_sprite;
 static Notifier mouse_mode_notifier;
 
-#define SDL2_REFRESH_INTERVAL_BUSY 10
 #define SDL2_MAX_IDLE_COUNT (2 * GUI_REFRESH_INTERVAL_DEFAULT \
                              / SDL2_REFRESH_INTERVAL_BUSY + 1)
 
@@ -495,7 +494,6 @@ static void handle_textinput(SDL_Event *ev)
 
 static void handle_mousemotion(SDL_Event *ev)
 {
-    int max_x, max_y;
     struct sdl2_console *scon = get_scon_from_window(ev->motion.windowID);
     int scr_w, scr_h, surf_w, surf_h, x, y, dx, dy;
 
@@ -503,6 +501,7 @@ static void handle_mousemotion(SDL_Event *ev)
         return;
     }
 
+    int max_x, max_y;
     SDL_GetWindowSize(scon->real_window, &scr_w, &scr_h);
     if (qemu_input_is_absolute(scon->dcl.con) || absolute_enabled) {
         max_x = scr_w - 1;

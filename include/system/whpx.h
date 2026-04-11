@@ -28,6 +28,9 @@ extern bool whpx_allowed;
 extern bool whpx_irqchip_in_kernel;
 #define whpx_enabled() (whpx_allowed)
 #define whpx_irqchip_in_kernel() (whpx_irqchip_in_kernel)
+
+uint32_t whpx_get_supported_cpuid(uint32_t func, uint32_t idx, int reg);
+
 #else /* !CONFIG_WHPX_IS_POSSIBLE */
 #define whpx_enabled() 0
 #define whpx_irqchip_in_kernel() (0)

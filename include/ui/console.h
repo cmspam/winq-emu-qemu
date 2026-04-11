@@ -44,8 +44,11 @@ OBJECT_DECLARE_SIMPLE_TYPE(QemuFixedTextConsole, QEMU_FIXED_TEXT_CONSOLE)
 #define QEMU_CAPS_LOCK_LED   (1 << 2)
 
 /* in ms */
-#define GUI_REFRESH_INTERVAL_DEFAULT    30
+#define GUI_REFRESH_INTERVAL_DEFAULT    1
 #define GUI_REFRESH_INTERVAL_IDLE     3000
+
+/* Global EDID refresh rate from -display refresh-rate= option (millihertz) */
+extern uint32_t qemu_edid_refresh_rate_mhz;
 
 /* Color number is match to standard vga palette */
 enum qemu_color_names {

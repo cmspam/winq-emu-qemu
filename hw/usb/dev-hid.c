@@ -102,7 +102,7 @@ static const USBDescIface desc_iface_mouse = {
             .bEndpointAddress      = USB_DIR_IN | 0x01,
             .bmAttributes          = USB_ENDPOINT_XFER_INT,
             .wMaxPacketSize        = 4,
-            .bInterval             = 0x0a,
+            .bInterval             = 0x02, /* 2ms polling for responsive input */
         },
     },
 };
@@ -133,7 +133,7 @@ static const USBDescIface desc_iface_mouse2 = {
             .bEndpointAddress      = USB_DIR_IN | 0x01,
             .bmAttributes          = USB_ENDPOINT_XFER_INT,
             .wMaxPacketSize        = 4,
-            .bInterval             = 7, /* 2 ^ (8-1) * 125 usecs = 8 ms */
+            .bInterval             = 4, /* 2 ^ (4-1) * 125 usecs = 1 ms */
         },
     },
 };
@@ -163,7 +163,7 @@ static const USBDescIface desc_iface_tablet = {
             .bEndpointAddress      = USB_DIR_IN | 0x01,
             .bmAttributes          = USB_ENDPOINT_XFER_INT,
             .wMaxPacketSize        = 8,
-            .bInterval             = 0x0a,
+            .bInterval             = 0x02, /* 2ms polling for responsive input */
         },
     },
 };
@@ -224,7 +224,7 @@ static const USBDescIface desc_iface_keyboard = {
             .bEndpointAddress      = USB_DIR_IN | 0x01,
             .bmAttributes          = USB_ENDPOINT_XFER_INT,
             .wMaxPacketSize        = 8,
-            .bInterval             = 0x0a,
+            .bInterval             = 0x02, /* 2ms polling for responsive input */
         },
     },
 };
@@ -255,7 +255,7 @@ static const USBDescIface desc_iface_keyboard2 = {
             .bEndpointAddress      = USB_DIR_IN | 0x01,
             .bmAttributes          = USB_ENDPOINT_XFER_INT,
             .wMaxPacketSize        = 8,
-            .bInterval             = 7, /* 2 ^ (8-1) * 125 usecs = 8 ms */
+            .bInterval             = 4, /* 2 ^ (4-1) * 125 usecs = 1 ms */
         },
     },
 };

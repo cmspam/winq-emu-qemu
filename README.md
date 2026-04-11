@@ -1,10 +1,10 @@
 # WINQ-EMU QEMU
 
-A fork of [QEMU](https://www.qemu.org/) (based on v11.0.0-rc2) optimized for running Linux VMs on Windows with hardware GPU acceleration.
+A fork of [QEMU](https://www.qemu.org/) (based on v11.0.0-rc3) optimized for running Linux VMs on Windows with hardware GPU acceleration.
 
 ## What's Changed
 
-All changes are in the `winq-emu-alpha1` branch, applied as a single commit on top of upstream `v11.0.0-rc2`.
+All changes are applied as a single commit on top of upstream `v11.0.0-rc3`, making it easy to rebase onto future QEMU releases.
 
 ### WHPX Host CPU Passthrough
 - **`-cpu host` for WHPX**: Full CPUID passthrough from the host CPU to the guest, including AVX-512, hybrid core topology, and all modern instruction sets. Previously, WHPX only supported named CPU models.
@@ -20,19 +20,21 @@ All changes are in the `winq-emu-alpha1` branch, applied as a single commit on t
 
 ### Requirements (MSYS2 UCRT64)
 
+All builds must be done from the MSYS2 UCRT64 shell (not MINGW64 or MSYS).
+
 ```bash
 pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-meson \
-          mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt64-x86_64-pkg-config \
+          mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkg-config \
           mingw-w64-ucrt-x86_64-glib2 mingw-w64-ucrt-x86_64-pixman \
-          mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-gtk3 \
-          mingw-w64-ucrt-x86_64-libepoxy mingw-w64-ucrt-x86_64-angleproject \
-          mingw-w64-ucrt-x86_64-curl mingw-w64-ucrt-x86_64-libssh \
-          mingw-w64-ucrt-x86_64-snappy mingw-w64-ucrt-x86_64-lzo2 \
-          mingw-w64-ucrt-x86_64-zstd mingw-w64-ucrt-x86_64-capstone \
-          mingw-w64-ucrt-x86_64-dtc mingw-w64-ucrt-x86_64-libslirp
+          mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-libepoxy \
+          mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-dtc \
+          mingw-w64-ucrt-x86_64-zstd \
+          git diffutils
 ```
 
-You also need [winq-emu-virglrenderer](https://github.com/cmspam/winq-emu-virglrenderer) built and installed to `/ucrt64`.
+**Important**: The `git` and `diffutils` packages (from the MSYS2 base, not the mingw-w64 variants) are required — QEMU's meson build needs `git` to fetch subprojects and `diff` to run its test schema checks. Without these, configure will fail.
+
+You also need [winq-emu-virglrenderer](https://github.com/cmspam/winq-emu-virglrenderer) built and installed to `/ucrt64` before building QEMU.
 
 ### Build
 
@@ -44,11 +46,11 @@ Or manually:
 
 ```bash
 mkdir -p build && cd build
-../configure --target-list=x86_64-softmmu --enable-whpx --enable-opengl --enable-virglrenderer --disable-docs --disable-plugins
+../configure --target-list=x86_64-softmmu --prefix=/ucrt64 --enable-whpx --enable-opengl --enable-virglrenderer --disable-docs --disable-plugins
 ninja
 ```
 
-The output is `build/qemu-system-x86_64.exe`.
+The output is `build/qemu-system-x86_64.exe` and `build/qemu-img.exe`.
 
 ### Running
 
@@ -59,21 +61,27 @@ qemu-system-x86_64.exe \
   -m 8G -smp 8 \
   -drive file=disk.qcow2,format=qcow2,if=virtio \
   -device virtio-vga-gl,blob=on,hostmem=4G,venus=on \
-  -display sdl,gl=on \
+  -display win32-gl \
   -device virtio-sound-pci \
+  -usb -device usb-tablet \
   -device virtio-net-pci,netdev=net0 \
   -netdev user,id=net0,hostfwd=tcp::2223-:22
 ```
 
 ## Syncing with Upstream
 
-This fork tracks [QEMU upstream](https://gitlab.com/qemu-project/qemu). To sync:
+This fork tracks [QEMU upstream](https://gitlab.com/qemu-project/qemu). All custom changes are in a single commit on top of the upstream tag, so rebasing is straightforward:
 
 ```bash
 git remote add upstream https://gitlab.com/qemu-project/qemu.git
-git fetch upstream
-git checkout winq-emu-alpha1
-git rebase upstream/master
+git fetch upstream --tags
+git rebase --onto <new-tag> <old-tag> HEAD
+```
+
+For example, to rebase from v11.0.0-rc3 to a future v11.0.0:
+
+```bash
+git rebase --onto v11.0.0 v11.0.0-rc3 HEAD
 ```
 
 ## Related Projects

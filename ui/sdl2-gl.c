@@ -245,12 +245,17 @@ void sdl2_gl_scanout_flush(DisplayChangeListener *dcl,
     }
 
     SDL_GL_MakeCurrent(scon->real_window, scon->winctx);
+    SDL_GL_SetSwapInterval(0);
 
     SDL_GetWindowSize(scon->real_window, &ww, &wh);
     egl_fb_setup_default(&scon->win_fb, ww, wh, 0, 0);
     egl_fb_blit(&scon->win_fb, &scon->guest_fb, !scon->y0_top);
 
     SDL_GL_SwapWindow(scon->real_window);
+
+    /* Keep poll rate high while frames are being presented */
+    scon->idle_counter = 0;
+    scon->dcl.update_interval = SDL2_REFRESH_INTERVAL_BUSY;
 }
 
 #ifdef CONFIG_GBM

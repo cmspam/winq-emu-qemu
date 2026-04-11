@@ -26,6 +26,8 @@
 # include "ui/egl-helpers.h"
 #endif
 
+#define SDL2_REFRESH_INTERVAL_BUSY 1
+
 struct sdl2_console {
     DisplayGLCtx dgc;
     DisplayChangeListener dcl;

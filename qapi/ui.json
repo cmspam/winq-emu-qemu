@@ -1479,6 +1479,16 @@
   'data'    : { '*grab-mod'   : 'HotKeyMod' } }
 
 ##
+# @DisplayWin32GL:
+#
+# Win32 native display with EGL/GL (Windows only).
+#
+# Since: 11.0
+##
+{ 'struct'  : 'DisplayWin32GL',
+  'data'    : { } }
+
+##
 # @DisplayType:
 #
 # Display (user interface) type.
@@ -1513,6 +1523,8 @@
 #
 # @dbus: Start a D-Bus service for the display.  (Since 7.0)
 #
+# @win32-gl: Native Win32 window with EGL/GL.  (Since 11.0)
+#
 # Since: 2.12
 ##
 { 'enum'    : 'DisplayType',
@@ -1525,7 +1537,8 @@
     { 'name': 'curses', 'if': 'CONFIG_CURSES' },
     { 'name': 'cocoa', 'if': 'CONFIG_COCOA' },
     { 'name': 'spice-app', 'if': 'CONFIG_SPICE' },
-    { 'name': 'dbus', 'if': 'CONFIG_DBUS_DISPLAY' }
+    { 'name': 'dbus', 'if': 'CONFIG_DBUS_DISPLAY' },
+    { 'name': 'win32-gl', 'if': 'CONFIG_WIN32_GL' }
   ]
 }
 
@@ -1547,6 +1560,9 @@
 #
 # @gl: Enable OpenGL support (default: off).
 #
+# @refresh-rate: EDID refresh rate in millihertz, e.g. 120000 for
+#     120Hz (default: 120000).  (since: 11.0)
+#
 # Since: 2.12
 ##
 { 'union'   : 'DisplayOptions',
@@ -1554,7 +1570,8 @@
                 '*full-screen'   : 'bool',
                 '*window-close'  : 'bool',
                 '*show-cursor'   : 'bool',
-                '*gl'            : 'DisplayGLMode' },
+                '*gl'            : 'DisplayGLMode',
+                '*refresh-rate'  : 'uint32' },
   'discriminator' : 'type',
   'data'    : {
       'gtk': { 'type': 'DisplayGTK', 'if': 'CONFIG_GTK' },
@@ -1563,7 +1580,8 @@
       'egl-headless': { 'type': 'DisplayEGLHeadless',
                         'if': 'CONFIG_OPENGL' },
       'dbus': { 'type': 'DisplayDBus', 'if': 'CONFIG_DBUS_DISPLAY' },
-      'sdl': { 'type': 'DisplaySDL', 'if': 'CONFIG_SDL' }
+      'sdl': { 'type': 'DisplaySDL', 'if': 'CONFIG_SDL' },
+      'win32-gl': { 'type': 'DisplayWin32GL', 'if': 'CONFIG_WIN32_GL' }
   }
 }
 

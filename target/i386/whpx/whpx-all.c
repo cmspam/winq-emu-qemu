@@ -1082,6 +1082,7 @@ HRESULT whpx_set_exception_exit_bitmap(UINT64 exceptions)
     /* Register for MSR and CPUID exits */
     memset(&prop, 0, sizeof(WHV_PARTITION_PROPERTY));
     prop.ExtendedVmExits.X64MsrExit = 1;
+    prop.ExtendedVmExits.X64CpuidExit = 1;
     if (exceptions != 0) {
         prop.ExtendedVmExits.ExceptionExit = 1;
     }
@@ -1893,6 +1894,50 @@ int whpx_vcpu_run(CPUState *cpu)
                 ret = 1;
             }
             break;
+        case WHvRunVpExitReasonX64Cpuid: {
+            WHV_REGISTER_VALUE reg_values[5] = {0};
+            WHV_REGISTER_NAME reg_names[5];
+            UINT32 reg_count = 0;
+
+            /*
+             * Use the default CPUID results provided by WHPX. These
+             * reflect the host CPU filtered through the hypervisor.
+             * For most leaves this is correct. Specific leaves can be
+             * overridden here if needed (e.g., topology adjustments).
+             */
+            reg_values[reg_count].Reg64 =
+                vcpu->exit_ctx.CpuidAccess.DefaultResultRax;
+            reg_names[reg_count++] = WHvX64RegisterRax;
+
+            reg_values[reg_count].Reg64 =
+                vcpu->exit_ctx.CpuidAccess.DefaultResultRbx;
+            reg_names[reg_count++] = WHvX64RegisterRbx;
+
+            reg_values[reg_count].Reg64 =
+                vcpu->exit_ctx.CpuidAccess.DefaultResultRcx;
+            reg_names[reg_count++] = WHvX64RegisterRcx;
+
+            reg_values[reg_count].Reg64 =
+                vcpu->exit_ctx.CpuidAccess.DefaultResultRdx;
+            reg_names[reg_count++] = WHvX64RegisterRdx;
+
+            /* Advance RIP past the CPUID instruction */
+            reg_values[reg_count].Reg64 =
+                vcpu->exit_ctx.VpContext.Rip +
+                vcpu->exit_ctx.VpContext.InstructionLength;
+            reg_names[reg_count++] = WHvX64RegisterRip;
+
+            hr = whp_dispatch.WHvSetVirtualProcessorRegisters(
+                whpx->partition, cpu->cpu_index,
+                reg_names, reg_count, reg_values);
+
+            if (FAILED(hr)) {
+                error_report("WHPX: Failed to set CPUID result "
+                             "registers, hr=%08lx", hr);
+            }
+            ret = 0;
+            break;
+        }
         case WHvRunVpExitReasonX64MsrAccess: {
             WHV_REGISTER_VALUE reg_values[3] = {0};
             WHV_REGISTER_NAME reg_names[3];
@@ -2111,13 +2156,6 @@ error:
     g_free(vcpu);
 
     return ret;
-}
-
-void whpx_cpu_instance_init(CPUState *cs)
-{
-    X86CPU *cpu = X86_CPU(cs);
-
-    host_cpu_instance_init(cpu);
 }
 
 /*
@@ -2354,6 +2392,7 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     /* Register for MSR and CPUID exits */
     memset(&prop, 0, sizeof(WHV_PARTITION_PROPERTY));
     prop.ExtendedVmExits.X64MsrExit = 1;
+    prop.ExtendedVmExits.X64CpuidExit = 1;
 
     hr = whp_dispatch.WHvSetPartitionProperty(
             whpx->partition,

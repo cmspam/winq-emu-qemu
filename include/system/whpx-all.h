@@ -4,6 +4,9 @@
 
 #include "system/whpx-accel-ops.h"
 
+struct whpx_breakpoint_collection;
+struct whpx_breakpoints;
+
 /* Called by whpx-common */
 int whpx_vcpu_run(CPUState *cpu);
 void whpx_get_registers(CPUState *cpu, WHPXStateLevel level);

@@ -2837,6 +2837,59 @@ void qmp_x_exit_preconfig(Error **errp)
     }
 }
 
+#ifdef _WIN32
+#include <mmsystem.h>
+/*
+ * Windows platform timer resolution optimization.
+ * Default Windows timer is 15.6ms which makes 1ms polling intervals
+ * round up to ~16ms.  Setting 0.5ms resolution via NtSetTimerResolution
+ * (undocumented but stable ntdll API, same approach as crosvm) makes
+ * sub-millisecond timers actually fire on time.
+ */
+typedef LONG (NTAPI *pNtSetTimerResolution)(ULONG, BOOLEAN, PULONG);
+typedef LONG (NTAPI *pNtQueryTimerResolution)(PULONG, PULONG, PULONG);
+static ULONG win32_timer_prev_resolution;
+static pNtSetTimerResolution win32_NtSetTimerResolution;
+
+static void win32_restore_timer_resolution(void)
+{
+    if (win32_NtSetTimerResolution) {
+        ULONG actual;
+        win32_NtSetTimerResolution(win32_timer_prev_resolution, TRUE, &actual);
+    }
+}
+
+static void win32_enable_high_res_timers(void)
+{
+    HMODULE ntdll = GetModuleHandleA("ntdll.dll");
+    if (!ntdll) goto fallback;
+
+    pNtQueryTimerResolution query = (pNtQueryTimerResolution)
+        GetProcAddress(ntdll, "NtQueryTimerResolution");
+    win32_NtSetTimerResolution = (pNtSetTimerResolution)
+        GetProcAddress(ntdll, "NtSetTimerResolution");
+
+    if (!query || !win32_NtSetTimerResolution) goto fallback;
+
+    ULONG min_res, max_res, cur_res;
+    if (query(&min_res, &max_res, &cur_res) != 0) goto fallback;
+
+    /* max_res is in 100ns units; 5000 = 0.5ms */
+    if (max_res <= 5000) {
+        ULONG actual;
+        win32_timer_prev_resolution = cur_res;
+        if (win32_NtSetTimerResolution(5000, TRUE, &actual) == 0) {
+            atexit(win32_restore_timer_resolution);
+            return;
+        }
+    }
+
+fallback:
+    win32_NtSetTimerResolution = NULL;
+    timeBeginPeriod(1);
+}
+#endif /* _WIN32 */
+
 void qemu_init(int argc, char **argv)
 {
     QemuOpts *opts;
@@ -2847,6 +2900,10 @@ void qemu_init(int argc, char **argv)
     MachineClass *machine_class;
     bool userconfig = true;
     FILE *vmstate_dump_file = NULL;
+
+#ifdef _WIN32
+    win32_enable_high_res_timers();
+#endif
 
     qemu_add_opts(&qemu_drive_opts);
     qemu_add_drive_opts(&qemu_legacy_drive_opts);

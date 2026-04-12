@@ -1,0 +1,6 @@
+proxy_server_create called
+proxy_server_create_thread: entered
+proxy_server_create_thread: socket_pair OK fds=2852,2848
+vkr_renderer_init flags=0x3
+vkr_renderer_init OK
+vkr: vkr: win32 shim: installed for device 0000029301863a78 (mem=1 fence=1 sem=1, deferred-destroy=metadata)vkr: proxy: server worker: exiting ctx 13vkr: vkr: destroying context 13 (vkcube) with a valid instancevkr: vkr: destroying device with valid objectsvkr: vkr: win32 shim: flushing 16 deferred object destructions

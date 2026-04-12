@@ -125,7 +125,9 @@ void sdl2_window_create(struct sdl2_console *scon)
     }
 
 #ifdef CONFIG_OPENGL
-    qemu_egl_display = eglGetCurrentDisplay();
+    if (epoxy_has_egl()) {
+        qemu_egl_display = eglGetCurrentDisplay();
+    }
 #endif
 
     sdl_update_caption(scon);
@@ -293,20 +295,38 @@ static void absolute_mouse_grab(struct sdl2_console *scon)
     }
 }
 
-static void sdl_mouse_mode_change(Notifier *notify, void *data)
+/*
+ * Mouse mode change is deferred to the main thread because the notifier
+ * can fire from the I/O thread (e.g. when the USB tablet is initialized
+ * by the guest OS).  SDL functions called from non-SDL threads deadlock
+ * on Windows.
+ */
+static volatile bool pending_mouse_mode_change;
+
+static void sdl_apply_pending_mouse_mode(struct sdl2_console *scon)
 {
-    if (qemu_input_is_absolute(sdl2_console[0].dcl.con)) {
+    if (!pending_mouse_mode_change) {
+        return;
+    }
+    pending_mouse_mode_change = false;
+
+    if (qemu_input_is_absolute(scon->dcl.con)) {
         if (!absolute_enabled) {
             absolute_enabled = 1;
             SDL_SetRelativeMouseMode(SDL_FALSE);
-            absolute_mouse_grab(&sdl2_console[0]);
+            absolute_mouse_grab(scon);
         }
     } else if (absolute_enabled) {
         if (!gui_fullscreen) {
-            sdl_grab_end(&sdl2_console[0]);
+            sdl_grab_end(scon);
         }
         absolute_enabled = 0;
     }
+}
+
+static void sdl_mouse_mode_change(Notifier *notify, void *data)
+{
+    pending_mouse_mode_change = true;
 }
 
 static void sdl_send_mouse_event(struct sdl2_console *scon, int dx, int dy,
@@ -665,6 +685,9 @@ void sdl2_poll_events(struct sdl2_console *scon)
     bool allow_close = true;
     int idle = 1;
 
+    /* Apply deferred mouse mode change from I/O thread */
+    sdl_apply_pending_mouse_mode(scon);
+
     if (scon->last_vm_running != runstate_is_running()) {
         scon->last_vm_running = runstate_is_running();
         sdl_update_caption(scon);
@@ -886,6 +909,9 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
     SDL_Surface *icon = NULL;
     char *dir;
 
+    /* Mark as DPI aware so Windows doesn't upscale the window */
+    SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS, "permonitorv2");
+
     assert(o->type == DISPLAY_TYPE_SDL);
 
     if (SDL_GetHintBoolean("QEMU_ENABLE_SDL_LOGGING", SDL_FALSE)) {
@@ -897,6 +923,16 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
                 SDL_GetError());
         exit(1);
     }
+
+    /* Set EDID refresh rate to match the host monitor */
+    if (!qemu_edid_refresh_rate_mhz) {
+        SDL_DisplayMode mode;
+        if (SDL_GetCurrentDisplayMode(0, &mode) == 0 &&
+            mode.refresh_rate > 0) {
+            qemu_edid_refresh_rate_mhz = mode.refresh_rate * 1000;
+        }
+    }
+
 #ifdef SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR /* only available since SDL 2.0.8 */
     SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
 #endif

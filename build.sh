@@ -10,6 +10,7 @@ cd build
     --enable-whpx \
     --enable-opengl \
     --enable-virglrenderer \
+    --enable-slirp \
     --disable-docs \
     --disable-plugins \
     2>&1

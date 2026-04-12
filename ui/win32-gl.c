@@ -717,8 +717,14 @@ static bool win32_wgl_init(Win32Console *con)
      * This may return NULL if there's no EGL backing the WGL context,
      * which is fine — virglrenderer will use the QEMU callbacks instead
      * of the winsys path.
+     * Guard the call: libepoxy resolves eglGetCurrentDisplay to NULL
+     * when no EGL library is loaded, which would segfault.
      */
-    qemu_egl_display = eglGetCurrentDisplay();
+    if (epoxy_has_egl()) {
+        qemu_egl_display = eglGetCurrentDisplay();
+    } else {
+        qemu_egl_display = EGL_NO_DISPLAY;
+    }
 
     return true;
 }

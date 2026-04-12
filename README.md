@@ -11,10 +11,15 @@ All changes are applied as a single commit on top of upstream `v11.0.0-rc3`, mak
 
 ### Venus GPU Integration
 - **virtio-gpu Venus support**: Working configuration for Venus Vulkan forwarding with blob resources on Windows
-- **120Hz EDID default**: Changed default virtual display refresh rate from 75Hz to 120Hz
+- **Dynamic EDID refresh rate**: Automatically matches the host monitor's refresh rate (falls back to 120Hz)
+
+### SDL Display Enhancements
+- **USB tablet fix**: Deferred mouse mode changes to SDL thread to prevent freezes on Windows
+- **EGL guard**: Prevents crash on systems without EGL
+- **DPI awareness**: Per-monitor DPI aware on Windows
 
 ### Build Configuration
-- Includes a build script preconfigured for MSYS2 UCRT64 with OpenGL, virglrenderer, and WHPX enabled
+- Includes a build script preconfigured for MSYS2 UCRT64 with OpenGL, virglrenderer, slirp, and WHPX enabled
 
 ## Building
 

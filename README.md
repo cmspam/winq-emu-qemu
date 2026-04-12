@@ -61,7 +61,7 @@ qemu-system-x86_64.exe \
   -m 8G -smp 8 \
   -drive file=disk.qcow2,format=qcow2,if=virtio \
   -device virtio-vga-gl,blob=on,hostmem=4G,venus=on \
-  -display win32-gl \
+  -display sdl,gl=on \
   -device virtio-sound-pci \
   -usb -device usb-tablet \
   -device virtio-net-pci,netdev=net0 \

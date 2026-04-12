@@ -131,12 +131,6 @@ if sdl.found()
   ui_modules += {'sdl' : sdl_ss}
 endif
 
-if host_os == 'windows' and opengl.found()
-  win32gl_ss = ss.source_set()
-  win32gl_ss.add(opengl, pixman, glib, files('win32-gl.c'))
-  ui_modules += {'win32-gl' : win32gl_ss}
-endif
-
 if spice.found()
   spice_core_ss = ss.source_set()
   spice_core_ss.add(spice, pixman, files(

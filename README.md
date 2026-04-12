@@ -28,7 +28,7 @@ pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-meson \
           mingw-w64-ucrt-x86_64-glib2 mingw-w64-ucrt-x86_64-pixman \
           mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-libepoxy \
           mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-dtc \
-          mingw-w64-ucrt-x86_64-zstd \
+          mingw-w64-ucrt-x86_64-zstd mingw-w64-ucrt-x86_64-libslirp \
           git diffutils
 ```
 
@@ -46,7 +46,7 @@ Or manually:
 
 ```bash
 mkdir -p build && cd build
-../configure --target-list=x86_64-softmmu --prefix=/ucrt64 --enable-whpx --enable-opengl --enable-virglrenderer --disable-docs --disable-plugins
+../configure --target-list=x86_64-softmmu --prefix=/ucrt64 --enable-whpx --enable-opengl --enable-virglrenderer --enable-slirp --disable-docs --disable-plugins
 ninja
 ```
 

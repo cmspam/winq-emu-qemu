@@ -10,17 +10,29 @@ char *qemu_open_flags_tostr(int flags)
         (acc == O_WRONLY) ? "WRONLY" : (acc == O_RDONLY) ? "RDONLY" : "RDWR",
         (flags & O_CREAT) ? "|CREAT" : "",
         (flags & O_EXCL) ? "|EXCL" : "",
+        #ifdef O_NOCTTY
         (flags & O_NOCTTY) ? "|NOCTTY" : "",
+        #endif
         (flags & O_TRUNC) ? "|TRUNC" : "",
         (flags & O_APPEND) ? "|APPEND" : "",
+        #ifdef O_NONBLOCK
         (flags & O_NONBLOCK) ? "|NONBLOCK" : "",
+        #endif
+        #ifdef O_DSYNC
         (flags & O_DSYNC) ? "|DSYNC" : "",
+        #endif
         #ifdef O_DIRECT
         (flags & O_DIRECT) ? "|DIRECT" : "",
         #endif
+        #ifdef O_LARGEFILE
         (flags & O_LARGEFILE) ? "|LARGEFILE" : "",
+        #endif
+        #ifdef O_DIRECTORY
         (flags & O_DIRECTORY) ? "|DIRECTORY" : "",
+        #endif
+        #ifdef O_NOFOLLOW
         (flags & O_NOFOLLOW) ? "|NOFOLLOW" : "",
+        #endif
         #ifdef O_NOATIME
         (flags & O_NOATIME) ? "|NOATIME" : "",
         #endif
@@ -29,7 +41,7 @@ char *qemu_open_flags_tostr(int flags)
         #endif
         #ifdef __O_SYNC
         (flags & __O_SYNC) ? "|SYNC" : "",
-        #else
+        #elif defined(O_SYNC)
         ((flags & O_SYNC) == O_SYNC) ? "|SYNC" : "",
         #endif
         #ifdef O_PATH

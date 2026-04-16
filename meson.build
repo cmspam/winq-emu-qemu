@@ -2342,8 +2342,9 @@ dbus_display = get_option('dbus_display') \
   .allowed()
 
 have_virtfs = get_option('virtfs') \
-    .require(host_os == 'linux' or host_os == 'darwin' or host_os == 'freebsd',
-             error_message: 'virtio-9p (virtfs) requires Linux or macOS or FreeBSD') \
+    .require(host_os == 'linux' or host_os == 'darwin' or host_os == 'freebsd' \
+             or host_os == 'windows',
+             error_message: 'virtio-9p (virtfs) requires Linux, macOS, FreeBSD or Windows') \
     .require(host_os != 'darwin' or cc.has_function('pthread_fchdir_np'),
              error_message: 'virtio-9p (virtfs) on macOS requires the presence of pthread_fchdir_np') \
     .require(host_os != 'linux' or libattr.found(),

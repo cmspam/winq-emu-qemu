@@ -15,6 +15,11 @@
 
 #include "qemu/error-report.h"
 
+/* forward declaration */
+union V9fsFidOpenState;
+struct V9fsState;
+struct FsContext;
+
 #ifdef O_PATH
 #define O_PATH_9P_UTIL O_PATH
 #else
@@ -62,36 +67,44 @@ static inline uint64_t makedev_dotl(uint32_t dev_major, uint32_t dev_minor)
  */
 static inline uint64_t host_dev_to_dotl_dev(dev_t dev)
 {
-#ifdef CONFIG_LINUX
+#if defined(CONFIG_LINUX) || defined(CONFIG_WIN32)
     return dev;
-#else
+#elif defined(CONFIG_DARWIN)
     return makedev_dotl(major(dev), minor(dev));
+#else
+#error Missing host_dev_to_dotl_dev() implementation for this host system
 #endif
 }
 
+#include "9p-linux-errno.h"
+
 /* Translates errno from host -> Linux if needed */
-static inline int errno_to_dotl(int err) {
+static inline int errno_to_dotl(int err)
+{
 #if defined(CONFIG_LINUX)
     /* nothing to translate (Linux -> Linux) */
-#elif defined(CONFIG_DARWIN) || defined(CONFIG_FREEBSD)
+#elif defined(CONFIG_DARWIN) || defined(CONFIG_FREEBSD) || defined(CONFIG_WIN32)
     /*
      * translation mandatory for non-Linux hosts
      *
      * FIXME: Only most important errnos translated here yet, this should be
      * extended to as many errnos being translated as possible in future.
      */
-    if (err == ENAMETOOLONG) {
-        err = 36; /* ==ENAMETOOLONG on Linux */
-    } else if (err == ENOTEMPTY) {
-        err = 39; /* ==ENOTEMPTY on Linux */
-    } else if (err == ELOOP) {
-        err = 40; /* ==ELOOP on Linux */
-    } else if (err == ENOATTR) {
-        err = 61; /* ==ENODATA on Linux */
-    } else if (err == ENOTSUP) {
-        err = 95; /* ==EOPNOTSUPP on Linux */
-    } else if (err == EOPNOTSUPP) {
-        err = 95; /* ==EOPNOTSUPP on Linux */
+    switch (err) {
+    case ENAMETOOLONG:  return L_ENAMETOOLONG;
+    case ENOTEMPTY:     return L_ENOTEMPTY;
+    case ELOOP:         return L_ELOOP;
+#ifdef CONFIG_DARWIN
+    case ENOATTR:       return L_ENODATA;
+    case ENOTSUP:       return L_EOPNOTSUPP;
+    case EOPNOTSUPP:    return L_EOPNOTSUPP;
+#endif
+#ifdef CONFIG_WIN32
+    case EDEADLK:       return L_EDEADLK;
+    case ENOLCK:        return L_ENOLCK;
+    case ENOSYS:        return L_ENOSYS;
+    case EILSEQ:        return L_EILSEQ;
+#endif
     }
 #else
 #error Missing errno translation to Linux for this host system
@@ -99,12 +112,31 @@ static inline int errno_to_dotl(int err) {
     return err;
 }
 
-#ifdef CONFIG_DARWIN
+#if defined(CONFIG_DARWIN)
 #define qemu_fgetxattr(...) fgetxattr(__VA_ARGS__, 0, 0)
+#elif defined(CONFIG_WIN32)
+#define qemu_fgetxattr fgetxattr_win32
 #else
 #define qemu_fgetxattr fgetxattr
 #endif
 
+#ifdef CONFIG_WIN32
+#define qemu_openat     openat_win32
+#define qemu_fstat      fstat
+#define qemu_fstatat    fstatat_win32
+#define qemu_mkdirat    mkdirat_win32
+#define qemu_renameat   renameat_win32
+#define qemu_utimensat  utimensat_win32
+#define qemu_unlinkat   unlinkat_win32
+#define qemu_futimens   qemu_futimens_win32
+
+#define qemu_opendir    opendir_win32
+#define qemu_closedir   closedir_win32
+#define qemu_readdir    readdir_win32
+#define qemu_rewinddir  rewinddir_win32
+#define qemu_seekdir    seekdir_win32
+#define qemu_telldir    telldir_win32
+#else
 #define qemu_openat     openat
 #define qemu_fstat      fstat
 #define qemu_fstatat    fstatat
@@ -113,6 +145,43 @@ static inline int errno_to_dotl(int err) {
 #define qemu_utimensat  utimensat
 #define qemu_unlinkat   unlinkat
 #define qemu_futimens   futimens
+
+#define qemu_opendir    opendir
+#define qemu_closedir   closedir
+#define qemu_readdir    readdir
+#define qemu_rewinddir  rewinddir
+#define qemu_seekdir    seekdir
+#define qemu_telldir    telldir
+#endif
+
+#ifdef CONFIG_WIN32
+#include <dirent.h>
+struct statfs;
+char *get_full_path_win32(HANDLE hDir, const char *name);
+ssize_t fgetxattr_win32(int fd, const char *name, void *value, size_t size);
+int openat_win32(int dirfd, const char *pathname, int flags, mode_t mode);
+int fstatat_win32(int dirfd, const char *pathname,
+                  struct stat *statbuf, int flags);
+int mkdirat_win32(int dirfd, const char *pathname, mode_t mode);
+int renameat_win32(int olddirfd, const char *oldpath,
+                   int newdirfd, const char *newpath);
+int utimensat_win32(int dirfd, const char *pathname,
+                    const struct timespec times[2], int flags);
+int unlinkat_win32(int dirfd, const char *pathname, int flags);
+int qemu_futimens_win32(int fd, const struct timespec times[2]);
+int statfs_win32(const char *root_path, struct statfs *stbuf);
+int openat_dir(int dirfd, const char *name);
+int openat_file(int dirfd, const char *name, int flags, mode_t mode);
+DIR *opendir_win32(const char *full_file_name);
+int closedir_win32(DIR *pDir);
+struct dirent *readdir_win32(DIR *pDir);
+void rewinddir_win32(DIR *pDir);
+void seekdir_win32(DIR *pDir, long pos);
+long telldir_win32(DIR *pDir);
+off_t qemu_dirent_off_win32(struct V9fsState *s, union V9fsFidOpenState *fs);
+uint64_t qemu_stat_rdev_win32(struct FsContext *fs_ctx);
+uint64_t qemu_stat_blksize_win32(struct FsContext *fs_ctx);
+#endif
 
 static inline void close_preserve_errno(int fd)
 {
@@ -153,6 +222,7 @@ static inline int close_if_special_file(int fd)
     return 0;
 }
 
+#ifndef CONFIG_WIN32
 static inline int openat_dir(int dirfd, const char *name)
 {
     return qemu_openat(dirfd, name,
@@ -210,6 +280,7 @@ again:
     }
     return fd;
 }
+#endif
 
 #ifdef CONFIG_FREEBSD
 ssize_t fgetxattr(int dirfd, const char *name, void *value, size_t size);
@@ -229,12 +300,17 @@ ssize_t fremovexattrat_nofollow(int dirfd, const char *filename,
  * so ensure it is manually injected earlier and call here when
  * needed.
  */
-static inline off_t qemu_dirent_off(struct dirent *dent)
+static inline off_t qemu_dirent_off(struct dirent *dent, struct V9fsState *s,
+                                    union V9fsFidOpenState *fs)
 {
-#ifdef CONFIG_DARWIN
+#if defined(CONFIG_DARWIN)
     return dent->d_seekoff;
-#else
+#elif defined(CONFIG_LINUX)
     return dent->d_off;
+#elif defined(CONFIG_WIN32)
+    return qemu_dirent_off_win32(s, fs);
+#else
+#error Missing qemu_dirent_off() implementation for this host system
 #endif
 }
 
@@ -266,6 +342,30 @@ static inline struct dirent *qemu_dirent_dup(struct dirent *dent)
                       strlen(dent->d_name) + 1;
     }
     return g_memdup(dent, sz);
+}
+
+static inline uint64_t qemu_stat_rdev(const struct stat *stbuf,
+                                      struct FsContext *fs_ctx)
+{
+#if defined(CONFIG_LINUX) || defined(CONFIG_DARWIN)
+    return stbuf->st_rdev;
+#elif defined(CONFIG_WIN32)
+    return qemu_stat_rdev_win32(fs_ctx);
+#else
+#error Missing qemu_stat_rdev() implementation for this host system
+#endif
+}
+
+static inline uint64_t qemu_stat_blksize(const struct stat *stbuf,
+                                         struct FsContext *fs_ctx)
+{
+#if defined(CONFIG_LINUX) || defined(CONFIG_DARWIN)
+    return stbuf->st_blksize;
+#elif defined(CONFIG_WIN32)
+    return qemu_stat_blksize_win32(fs_ctx);
+#else
+#error Missing qemu_stat_blksize() implementation for this host system
+#endif
 }
 
 /*

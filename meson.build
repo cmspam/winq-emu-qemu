@@ -1407,6 +1407,12 @@ if not get_option('virglrenderer').auto() or have_system or have_vhost_user_gpu
   virgl = dependency('virglrenderer',
                      method: 'pkg-config',
                      required: get_option('virglrenderer'))
+  if virgl.found()
+    # VIRGL_RENDERER_USE_VIDEO and get_drm_fd live behind the
+    # unstable-APIs flag in virglrenderer.
+    virgl = declare_dependency(compile_args: '-DVIRGL_RENDERER_UNSTABLE_APIS',
+                               dependencies: virgl)
+  endif
 endif
 rutabaga = not_found
 if not get_option('rutabaga_gfx').auto() or have_system or have_vhost_user_gpu

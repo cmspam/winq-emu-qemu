@@ -57,6 +57,15 @@ case "$MODE" in
       -usb -device usb-tablet
     )
     ;;
+  video)
+    # For VA-API testing: virgl 3D context (needed for the virgl_video path)
+    # but WITHOUT venus to avoid the known alpha-5 state-leak after force-kill.
+    GRAPHICS_ARGS=(
+      -display sdl,gl=on
+      -device 'virtio-vga-gl,blob=on,hostmem=4G'
+      -usb -device usb-tablet
+    )
+    ;;
   *)
     echo "[test-vm] !! unknown MODE=$MODE" >&2; exit 2;;
 esac

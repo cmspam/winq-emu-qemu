@@ -25,6 +25,18 @@
 #include <virglrenderer.h>
 
 /*
+ * Windows-host video-accel support: virglrenderer's VA-API (virgl_video)
+ * interface is initialised with a DRM fd on Linux, but on Windows our
+ * D3D11 Video Decoder backend ignores the fd entirely. Return -1 so the
+ * backend uses its own device enumeration; this callback just needs to
+ * exist for VIRGL_RENDERER_USE_VIDEO to work.
+ */
+static int virgl_get_drm_fd_stub(void *opaque)
+{
+    return -1;
+}
+
+/*
  * VIRGL_CHECK_VERSION available since libvirglrenderer 1.0.1 and was fixed
  * in 1.1.0. Undefine bugged version of the macro and provide our own.
  */
@@ -1351,6 +1363,7 @@ static struct virgl_renderer_callbacks virtio_gpu_3d_cbs = {
 #if VIRGL_VERSION_MAJOR >= 1
     .write_context_fence = virgl_write_context_fence,
 #endif
+    .get_drm_fd          = virgl_get_drm_fd_stub,
 };
 
 static void virtio_gpu_print_stats(void *opaque)
@@ -1433,6 +1446,11 @@ static int virtio_gpu_virgl_init(VirtIOGPU *g)
     int ret;
     uint32_t flags = 0;
     VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
+
+#ifdef VIRGL_RENDERER_USE_VIDEO
+    /* Enable virglrenderer's VA-API/video backend (D3D11 Video on Windows). */
+    flags |= VIRGL_RENDERER_USE_VIDEO;
+#endif
 
 #if VIRGL_RENDERER_CALLBACKS_VERSION >= 4
     fflush(stderr);

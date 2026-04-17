@@ -251,9 +251,13 @@ ssize_t fgetxattr_win32(int fd, const char *name, void *value, size_t size)
 
     hStream = CreateFile(ads_file_name, GENERIC_READ, FILE_SHARE_READ, NULL,
                          OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (hStream == INVALID_HANDLE_VALUE &&
-        GetLastError() == ERROR_FILE_NOT_FOUND) {
-        errno = ENODATA;
+    if (hStream == INVALID_HANDLE_VALUE) {
+        /* AUDIT F1: upstream Bin Meng v4 only trapped ERROR_FILE_NOT_FOUND
+         * and fell through to ReadFile(INVALID_HANDLE_VALUE, ...) on any
+         * other error (sharing violation, access denied, etc.). Always
+         * bail out on open failure; map NOT_FOUND to ENODATA per xattr
+         * semantics, everything else to EIO. */
+        errno = (GetLastError() == ERROR_FILE_NOT_FOUND) ? ENODATA : EIO;
         return -1;
     }
 
@@ -300,7 +304,13 @@ int openat_win32(int dirfd, const char *pathname, int flags, mode_t mode)
     }
 
     fd = open(full_file_name1, flags, mode);
-    if (fd > 0) {
+    /* AUDIT F2: fd==0 is a legitimate result (stdin slot) and was
+     * previously skipping the reparse-point check, letting a symlink-
+     * to-directory through. Also, on reparse-point rejection we
+     * close(fd) but returned fd unchanged — callers got a non-negative
+     * value that looks like success even though the fd is now closed.
+     * Fix to `>= 0` and assign -1 after close. */
+    if (fd >= 0) {
         DWORD attribute;
         hFile = (HANDLE)_get_osfhandle(fd);
 
@@ -312,6 +322,7 @@ int openat_win32(int dirfd, const char *pathname, int flags, mode_t mode)
             || (attribute & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
             errno = EACCES;
             close(fd);
+            fd = -1;
         }
     }
 
@@ -753,9 +764,13 @@ ssize_t fgetxattrat_nofollow(int dirfd, const char *path,
 
     hStream = CreateFile(ads_file_name, GENERIC_READ, FILE_SHARE_READ, NULL,
                          OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (hStream == INVALID_HANDLE_VALUE &&
-        GetLastError() == ERROR_FILE_NOT_FOUND) {
-        errno = ENODATA;
+    if (hStream == INVALID_HANDLE_VALUE) {
+        /* AUDIT F1: upstream Bin Meng v4 only trapped ERROR_FILE_NOT_FOUND
+         * and fell through to ReadFile(INVALID_HANDLE_VALUE, ...) on any
+         * other error (sharing violation, access denied, etc.). Always
+         * bail out on open failure; map NOT_FOUND to ENODATA per xattr
+         * semantics, everything else to EIO. */
+        errno = (GetLastError() == ERROR_FILE_NOT_FOUND) ? ENODATA : EIO;
         return -1;
     }
 
@@ -925,11 +940,16 @@ ssize_t fremovexattrat_nofollow(int dirfd, const char *filename,
         return -1;
     }
 
-    if (DeleteFile(ads_file_name) != 0) {
-        if (GetLastError() == ERROR_FILE_NOT_FOUND) {
-            errno = ENODATA;
-            return -1;
-        }
+    /* AUDIT F8: Bin Meng v4 had inverted logic here — `!= 0` is
+     * DeleteFile success (WinAPI convention), and the code was checking
+     * GetLastError AFTER success (meaningless). On DeleteFile failure
+     * (returns 0) the function silently returned 0 claiming success.
+     * Rewritten to surface failures: NOT_FOUND → ENODATA (xattr
+     * semantics), everything else → EIO. */
+    if (DeleteFile(ads_file_name) == 0) {
+        DWORD err = GetLastError();
+        errno = (err == ERROR_FILE_NOT_FOUND) ? ENODATA : EIO;
+        return -1;
     }
 
     return 0;

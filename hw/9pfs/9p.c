@@ -1396,12 +1396,13 @@ static int stat_to_v9stat_dotl(V9fsPDU *pdu, const struct stat *stbuf,
 #if defined(CONFIG_LINUX) || defined(CONFIG_DARWIN)
     v9lstat->st_blocks = stbuf->st_blocks;
 #elif defined(CONFIG_WIN32)
-    if (v9lstat->st_blksize == 0) {
-        v9lstat->st_blocks = 0;
-    } else {
-        v9lstat->st_blocks = ROUND_UP(v9lstat->st_size / v9lstat->st_blksize,
-                                      v9lstat->st_blksize);
-    }
+    /* POSIX defines st_blocks as the count of 512-byte units the file
+     * occupies on disk. The original Bin Meng v4 formula
+     *   ROUND_UP(st_size / st_blksize, st_blksize)
+     * produced a nonsense value (block-count rounded up to block-size).
+     * Guests calling du / stat saw absurdly inflated disk-usage figures.
+     * Fix to the spec-defined formula (AUDIT F3). */
+    v9lstat->st_blocks = (v9lstat->st_size + 511) / 512;
 #endif
     v9lstat->st_atime_sec = stbuf->st_atime;
     v9lstat->st_mtime_sec = stbuf->st_mtime;

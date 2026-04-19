@@ -25,14 +25,14 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/.." && pwd)"
 
 MODE="${MODE:-minimal}"
-QCOW2="${QCOW2:-C:/Users/charlesmiller/Documents/VMs/CachyOS/cachyos.qcow2}"
+QCOW2="${QCOW2:?set QCOW2 to a guest disk image path, e.g. /c/Users/you/Documents/VMs/guest.qcow2}"
 QEMU_BIN="${QEMU_BIN:-$REPO/build/qemu-system-x86_64.exe}"
 SSH_PORT="${SSH_PORT:-2223}"
 BOOT_TIMEOUT="${BOOT_TIMEOUT:-60}"
 SNAPSHOT="${SNAPSHOT:-on}"
 EXTRA_QEMU_ARGS="${EXTRA_QEMU_ARGS:-}"
-SSH_KEY="${SSH_KEY:-/c/Users/charlesmiller/.ssh/id_rsa}"
-SSH_USER="${SSH_USER:-charlesmiller}"
+SSH_KEY="${SSH_KEY:-$HOME/.ssh/id_rsa}"
+SSH_USER="${SSH_USER:-$(whoami)}"
 
 LOG="$(mktemp -t winq-test-XXXXXX.log)"
 

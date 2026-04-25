@@ -1,10 +1,10 @@
 # WINQ-EMU QEMU
 
-A fork of [QEMU](https://www.qemu.org/) (based on v11.0.0-rc3) optimized for running Linux VMs on Windows with hardware GPU acceleration.
+A fork of [QEMU](https://www.qemu.org/) (based on v11.0.0) optimized for running Linux VMs on Windows with hardware GPU acceleration, hardware video decode, and host folder sharing.
 
 ## What's Changed
 
-All changes are applied as a single commit on top of upstream `v11.0.0-rc3`, making it easy to rebase onto future QEMU releases.
+All changes are applied as a series of commits on top of upstream `v11.0.0`, making it easy to rebase onto future QEMU releases.
 
 ### WHPX Host CPU Passthrough
 - **`-cpu host` for WHPX**: Full CPUID passthrough from the host CPU to the guest, including AVX-512, hybrid core topology, and all modern instruction sets. Previously, WHPX only supported named CPU models.
@@ -18,8 +18,14 @@ All changes are applied as a single commit on top of upstream `v11.0.0-rc3`, mak
 - **EGL guard**: Prevents crash on systems without EGL
 - **DPI awareness**: Per-monitor DPI aware on Windows
 
+### virtio-9p Folder Sharing on Windows
+- **Windows 9pfs port**: Enables `-virtfs local,...` on Windows hosts so the GUI launcher's Folder Sharing tab can map Windows folders into the Linux guest. Based on the v4 patches by Bin Meng, with audit-cited correctness fixes.
+
+### VA-API Hardware Video Decode
+- **virgl_video acceleration**: `virtio-gpu-virgl` is built with `virgl_video` enabled so the guest's Mesa Gallium VA driver routes decode requests to the host's D3D11 video decoder (in the matching `winq-emu-virglrenderer`).
+
 ### Build Configuration
-- Includes a build script preconfigured for MSYS2 UCRT64 with OpenGL, virglrenderer, slirp, and WHPX enabled
+- Includes a build script preconfigured for MSYS2 UCRT64 with OpenGL, virglrenderer, slirp, virtio-9p, and WHPX enabled
 
 ## Building
 
@@ -83,10 +89,10 @@ git fetch upstream --tags
 git rebase --onto <new-tag> <old-tag> HEAD
 ```
 
-For example, to rebase from v11.0.0-rc3 to a future v11.0.0:
+For example, to rebase from v11.0.0 onto a future v11.1.0:
 
 ```bash
-git rebase --onto v11.0.0 v11.0.0-rc3 HEAD
+git rebase --onto v11.1.0 v11.0.0 HEAD
 ```
 
 ## Related Projects

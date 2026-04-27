@@ -2361,8 +2361,13 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     synthetic_features.Bank0.AccessFrequencyRegs = 1;
     synthetic_features.Bank0.EnableExtendedGvaRangesForFlushVirtualAddressList = 1;
     synthetic_features.Bank0.AccessVpIndex = 1;
-    synthetic_features.Bank0.AccessHypercallRegs = 1;
     synthetic_features.Bank0.TbFlushHypercalls = 1;
+    /*
+     * Return hypercall output via registers instead of a guest-physical output
+     * page. Saves one mapping fault per hypercall on every x86 multi-CPU TLB
+     * shootdown via TbFlushHypercalls. ARM path already enables it.
+     */
+    synthetic_features.Bank0.FastHypercallOutput = 1;
 
     if (whpx_irqchip_in_kernel()) {
         synthetic_features.Bank0.AccessSynicRegs = 1;

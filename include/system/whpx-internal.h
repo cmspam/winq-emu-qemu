@@ -89,6 +89,11 @@ void whpx_apic_get(APICCommonState *s);
          UINT32 StateSize)) \
   X(HRESULT, WHvResetPartition, \
         (WHV_PARTITION_HANDLE Partition)) \
+  X(HRESULT, WHvAdviseGpaRange, \
+        (WHV_PARTITION_HANDLE Partition, \
+         const WHV_MEMORY_RANGE_ENTRY *GpaRanges, UINT32 GpaRangesCount, \
+         WHV_ADVISE_GPA_RANGE_CODE Advice, const VOID *AdviceBuffer, \
+         UINT32 AdviceBufferSizeInBytes)) \
 
 #define WHP_DEFINE_TYPE(return_type, function_name, signature) \
     typedef return_type (WINAPI *function_name ## _t) signature;

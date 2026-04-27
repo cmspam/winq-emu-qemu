@@ -331,6 +331,40 @@ static void whpx_set_phys_mem(MemoryRegionSection *section, bool add)
         error_report("WHPX: failed to map GPA range");
         abort();
     }
+
+    /*
+     * For large RAM-backed regions (>= 256 MiB), hint to the hypervisor
+     * that we want SLAT entries pinned. Two cases benefit:
+     *   - The base RAM mapping (8 GiB by default) - keeps the guest's
+     *     working set out of the SLAT churn that makes Hyper-V demote
+     *     2 MiB / 1 GiB pages to 4 KiB under host memory pressure.
+     *   - The Venus virtio-gpu blob hostmem (4 GiB by default) - this
+     *     is the big shared region where guest GPU buffers live. SLAT
+     *     small-page demotion here is the kind of cliff that turns
+     *     60 fps Vulkan into 30 fps without warning.
+     *
+     * WHvAdviseGpaRange is Windows 11 24H2+ / Server 2025+. On older
+     * Windows, the dispatch slot is NULL or returns
+     * WHV_E_UNKNOWN_CAPABILITY. Both are benign - the hypervisor falls
+     * back to its default behaviour.
+     */
+    if (whp_dispatch.WHvAdviseGpaRange &&
+        memory_region_is_ram(area) && writable &&
+        size >= (256ULL * 1024 * 1024)) {
+        WHV_MEMORY_RANGE_ENTRY range = { .GuestAddress = gva,
+                                         .SizeInBytes = size };
+        HRESULT hr2 = whp_dispatch.WHvAdviseGpaRange(whpx->partition,
+                          &range, 1, WHvAdviseGpaRangeCodePin, NULL, 0);
+        if (FAILED(hr2)) {
+            /* benign on older Windows; only flag once */
+            static bool warned;
+            if (!warned) {
+                warn_report("WHPX: WHvAdviseGpaRange(Pin) hr=%08lx; "
+                            "large GPA pinning unavailable", hr2);
+                warned = true;
+            }
+        }
+    }
 }
 
 static void whpx_region_add(MemoryListener *listener,

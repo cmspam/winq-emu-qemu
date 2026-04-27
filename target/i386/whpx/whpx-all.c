@@ -2433,6 +2433,36 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     }
 
     /*
+     * Tell the hypervisor to silently zero-read / drop-write any MSR we
+     * have not registered for an explicit MSR-action exit. Without this,
+     * every unhandled MSR access (Linux probing PMU MSRs, Hyper-V
+     * synthetic MSRs the guest hasn't enabled, KVM PV MSRs that don't
+     * apply, etc.) traps to userspace where whpx_handle_msr_exit() just
+     * traces it and returns the same zero/drop. Each such exit is a
+     * full WHPX round-trip (~5 us); pushing the zero/drop into the
+     * hypervisor eliminates the round trip.
+     *
+     * Property is Windows 11 24H2+ / Server 2025+ only. Older Windows
+     * builds return WHV_E_UNKNOWN_PROPERTY here; treat that as benign.
+     */
+    {
+        WHV_PARTITION_PROPERTY msr_prop;
+        memset(&msr_prop, 0, sizeof(msr_prop));
+        msr_prop.UnimplementedMsrAction = WHvMsrActionIgnoreWriteReadZero;
+        hr = whp_dispatch.WHvSetPartitionProperty(
+                whpx->partition,
+                WHvPartitionPropertyCodeUnimplementedMsrAction,
+                &msr_prop,
+                sizeof(WHV_PARTITION_PROPERTY));
+        if (FAILED(hr)) {
+            /* Not fatal - falls back to the previous trap-to-userspace
+             * behaviour. Logged once at info level for diagnostics. */
+            warn_report("WHPX: UnimplementedMsrAction not accepted "
+                        "(hr=%08lx); using userspace MSR exit fallback", hr);
+        }
+    }
+
+    /*
      * We do not want to intercept any exceptions from the guest,
      * until we actually start debugging with gdb.
      */

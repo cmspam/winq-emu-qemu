@@ -136,7 +136,7 @@ static const WHV_REGISTER_NAME whpx_register_names[] = {
     WHvX64RegisterKernelGsBase,
 #endif
     WHvX64RegisterApicBase,
-    /* WHvX64RegisterPat, */
+    WHvX64RegisterPat,
     WHvX64RegisterSysenterCs,
     WHvX64RegisterSysenterEip,
     WHvX64RegisterSysenterEsp,
@@ -537,7 +537,8 @@ void whpx_set_registers(CPUState *cpu, WHPXStateLevel level)
         assert(whpx_register_names[idx] == WHvX64RegisterApicBase);
         vcxt.values[idx++].Reg64 = vcpu->apic_base;
 
-        /* WHvX64RegisterPat - Skipped */
+        assert(whpx_register_names[idx] == WHvX64RegisterPat);
+        vcxt.values[idx++].Reg64 = env->pat;
 
         assert(whpx_register_names[idx] == WHvX64RegisterSysenterCs);
         vcxt.values[idx++].Reg64 = env->sysenter_cs;
@@ -809,7 +810,8 @@ void whpx_get_registers(CPUState *cpu, WHPXStateLevel level)
         cpu_set_apic_base(x86_cpu->apic_state, vcpu->apic_base);
     }
 
-    /* WHvX64RegisterPat - Skipped */
+    assert(whpx_register_names[idx] == WHvX64RegisterPat);
+    env->pat = vcxt.values[idx++].Reg64;
 
     assert(whpx_register_names[idx] == WHvX64RegisterSysenterCs);
     env->sysenter_cs = vcxt.values[idx++].Reg64;

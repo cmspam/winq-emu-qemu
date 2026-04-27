@@ -9,6 +9,13 @@ All changes are applied as a series of commits on top of upstream `v11.0.0`, mak
 ### WHPX Host CPU Passthrough
 - **`-cpu host` for WHPX**: Full CPUID passthrough from the host CPU to the guest, including AVX-512, hybrid core topology, and all modern instruction sets. Previously, WHPX only supported named CPU models.
 
+### WHPX Improvements (Alpha 10)
+- **`IA32_PAT` MSR sync**: PAT MSR is now synchronised between QEMU and the WHPX partition. Without this, Linux's MTRR/PAT cache-type computation could fall back to UC for memory that should be Write-Combining — a real perf cliff for virtio-gpu / Venus shared mappings.
+- **5 ms inner exit loop deadline**: Caps the time `whpx_vcpu_run` can spend handling cheap exits (MMIO / portio / CPUID / MSR) before yielding back to the cpu-loop. Smoother frame pacing under Vulkan / Venus submit storms.
+- **`FastHypercallOutput` synthetic feature on x86**: brings the x86 path in line with ARM. Removes one mapping fault per Hyper-V hypercall.
+- **`UnimplementedMsrAction = IgnoreWriteReadZero` (Windows 11 24H2+)**: hypervisor handles Linux's boot-time MSR probing in-kernel instead of trapping to userspace.
+- **`WHvAdviseGpaRange(Pin)` for ≥256 MiB regions (Windows 11 24H2+)**: pins SLAT entries for the base RAM and the Venus blob hostmem region so the hypervisor doesn't demote large pages or evict under host memory pressure.
+
 ### Venus GPU Integration
 - **virtio-gpu Venus support**: Working configuration for Venus Vulkan forwarding with blob resources on Windows
 - **Dynamic EDID refresh rate**: Automatically matches the host monitor's refresh rate (falls back to 120Hz)

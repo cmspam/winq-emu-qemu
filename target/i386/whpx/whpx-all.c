@@ -2322,10 +2322,17 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
             WHvPartitionPropertyCodeNestedVirtualization,
             &prop,
             sizeof(WHV_PARTITION_PROPERTY));
-            if (FAILED(hr)) {
-                error_report("WHPX: Failed to enable nested virtualization, hr=%08lx", hr);
+        if (FAILED(hr)) {
+            if (hr == WHV_E_UNKNOWN_PROPERTY) {
+                processor_features.Bank1.NestedVirtSupport = 0;
+                warn_report("WHPX: Nested virtualization is unsupported, "
+                            "continuing without it");
+            } else {
+                error_report("WHPX: Failed to enable nested virtualization, "
+                             "hr=%08lx", hr);
                 ret = -EINVAL;
                 goto error;
+            }
         }
     }
 

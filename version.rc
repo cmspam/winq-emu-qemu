@@ -27,3 +27,9 @@ FILESUBTYPE VFT2_UNKNOWN
 }
 
 IDI_ICON1 ICON "pc-bios/winq-emu.ico"
+
+/* Embedded application manifest. 24 = RT_MANIFEST. The UTF-8 activeCodePage
+ * fixes virtio-9p non-ASCII (e.g. Chinese) filenames on non-UTF-8 ANSI-locale
+ * Windows hosts -- see issue #4. Must be embedded (an external
+ * qemu.exe.manifest file has lower priority than the embedded one). */
+1 24 "qemu.manifest"

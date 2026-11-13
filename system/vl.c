@@ -2859,8 +2859,39 @@ static void win32_restore_timer_resolution(void)
     }
 }
 
+/*
+ * Windows 11 throttles processes whose window is not in the foreground:
+ * EcoQoS (efficiency cores, lower clocks) and, since Windows 11, ignoring the
+ * timer resolution requested below. For a VM that means stalling vCPUs,
+ * Venus/virgl threads and 1 ms timers as soon as another window has focus
+ * (renner.dev OS lab: frames hung for 300-1700 ms, faster with focus). Opt
+ * out of both, like games and media players do.
+ */
+#ifndef PROCESS_POWER_THROTTLING_EXECUTION_SPEED
+#define PROCESS_POWER_THROTTLING_EXECUTION_SPEED 0x1
+#endif
+#ifndef PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION
+#define PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION 0x4
+#endif
+static void win32_disable_power_throttling(void)
+{
+    PROCESS_POWER_THROTTLING_STATE state = {
+        .Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION,
+        .ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED |
+                       PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION,
+        .StateMask = 0, /* controlled, and off */
+    };
+    if (!SetProcessInformation(GetCurrentProcess(), ProcessPowerThrottling,
+                               &state, sizeof(state))) {
+        warn_report("could not disable Windows power throttling (error %lu)",
+                    GetLastError());
+    }
+}
+
 static void win32_enable_high_res_timers(void)
 {
+    win32_disable_power_throttling();
+
     HMODULE ntdll = GetModuleHandleA("ntdll.dll");
     if (!ntdll) goto fallback;
 
